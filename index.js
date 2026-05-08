@@ -17,7 +17,7 @@ if (!BACKEND_BASE_URL) {
   process.exit(1);
 }
 
-const mcpServer = new McpServer({
+const server = new McpServer({
   name: "google-maps-mcp-wrapper",
   version: "1.0.0"
 });
@@ -32,8 +32,8 @@ async function postJson(path, body) {
   });
 
   const text = await response.text();
-
   let data;
+
   try {
     data = JSON.parse(text);
   } catch {
@@ -47,7 +47,7 @@ async function postJson(path, body) {
   return data;
 }
 
-mcpServer.tool(
+server.tool(
   "find_place",
   {
     query: z.string(),
@@ -56,38 +56,26 @@ mcpServer.tool(
   },
   async ({ query, city, state }) => {
     const data = await postJson("/maps/find-place", { query, city, state });
-
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2)
-        }
-      ]
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
   }
 );
 
-mcpServer.tool(
+server.tool(
   "geocode_address",
   {
     address: z.string()
   },
   async ({ address }) => {
     const data = await postJson("/maps/geocode", { address });
-
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2)
-        }
-      ]
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
   }
 );
 
-mcpServer.tool(
+server.tool(
   "get_street_view",
   {
     lat: z.number(),
@@ -108,17 +96,12 @@ mcpServer.tool(
     });
 
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2)
-        }
-      ]
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
   }
 );
 
-mcpServer.tool(
+server.tool(
   "get_static_map",
   {
     lat: z.number(),
@@ -139,12 +122,7 @@ mcpServer.tool(
     });
 
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(data, null, 2)
-        }
-      ]
+      content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
     };
   }
 );
@@ -153,21 +131,20 @@ app.get("/", (_req, res) => {
   res.json({
     ok: true,
     service: "google-maps-mcp-wrapper",
-    mcp_endpoint: "/mcp",
-    backend_base_url: BACKEND_BASE_URL
+    mcp_endpoint: "/mcp"
   });
 });
 
 app.all("/mcp", async (req, res) => {
   const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined
+    sessionIdGenerator: () => crypto.randomUUID()
   });
 
   res.on("close", () => {
     transport.close();
   });
 
-  await mcpServer.connect(transport);
+  await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
 });
 
